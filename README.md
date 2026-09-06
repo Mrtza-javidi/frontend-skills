@@ -13,22 +13,24 @@ Agent-agnostic by design: this repo holds only portable skill definitions — no
 ```text
 frontend-skills/
 │
-├── skills/
-│   └── develop/
-│       ├── SKILL.md            # what it covers, workflow, reference index
-│       └── references/         # detailed, topic-specific rules
-│           ├── GENERAL.md, REPOSITORY.md, SERVICE.md, STORE.md, COMPONENT.md,
-│           ├── VIEW.md, COMPOSABLE.md, ENUM.md, CONSTANT.md, CONFIG.md,
-│           └── UTIL.md, STYLE.md, LOCALE.md, COMMIT.md
+├── develop/
+│   ├── SKILL.md            # what it covers, workflow, reference index
+│   └── references/         # detailed, topic-specific rules
+│       ├── GENERAL.md, REPOSITORY.md, SERVICE.md, STORE.md, COMPONENT.md,
+│       ├── VIEW.md, COMPOSABLE.md, ENUM.md, CONSTANT.md, CONFIG.md,
+│       └── UTIL.md, STYLE.md, LOCALE.md, COMMIT.md
 │
 ├── README.md
 └── LICENSE
 ```
 
+Each top-level folder (`develop/`, and any future addition) is one installable skill —
+there's no wrapping `skills/` directory.
+
 ## Skills
 
 - **`develop`** — frontend development conventions (architecture layering, JS style,
-  naming, CSS/BEM, i18n, commit messages). See `skills/develop/SKILL.md` for what it
+  naming, CSS/BEM, i18n, commit messages). See `develop/SKILL.md` for what it
   covers and how an agent should apply it.
 
 ## Installing into a project
@@ -50,17 +52,18 @@ npx skills add https://github.com/eghamat24/frontend-skills
 `https://github.com/Mrtza-javidi/frontend-skills`.)
 
 Until you have a skills CLI wired up, install manually: copy or `git subtree`/clone the
-whole `skills/` folder (or just `skills/develop/` for a single skill) into wherever your
+whole repo (or just the `develop/` folder for a single skill) into wherever your
 agent looks for skills — for Claude Code, that's `.claude/skills/` inside the target
 project, one subfolder per skill.
 
 ## Adding another skill
 
 This repo is scoped to frontend conventions, so any future addition here should also be
-frontend-related. Same shape as `develop`:
+frontend-related. Same shape as `develop`, added as its own top-level folder (no
+wrapping `skills/` directory):
 
 ```text
-skills/<name>/
+<name>/
 ├── SKILL.md
 └── references/
 ```
@@ -69,6 +72,6 @@ skills/<name>/
 `references/` holds the detailed rules, loaded on demand. Don't duplicate a rule
 between the two.
 
-`COMMIT.md` currently lives under `skills/develop/references/` even though it isn't
+`COMMIT.md` currently lives under `develop/references/` even though it isn't
 frontend-specific, since `develop` is the only skill so far — fine as-is unless a
 second skill here would otherwise need to duplicate it.
