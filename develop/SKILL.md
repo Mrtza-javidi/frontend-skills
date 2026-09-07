@@ -1,6 +1,6 @@
 ---
 name: develop
-description: Frontend development conventions for Vue-based projects — architecture layering (Repository → Service → Store → View → Component), JavaScript style, naming, file organization, CSS/BEM, i18n, and commit message rules. Use whenever writing, reviewing, or refactoring frontend code in a project that has installed this skill. Inspect the project first, read the reference file for every layer the task actually touches (not just the primary file's own layer — a component task often also touches its store, composable, service, util, or styles), and prefer these rules over conflicting patterns already present in the codebase.
+description: Frontend development conventions for Vue-based projects — architecture layering (Repository → Service → Store → View → Component), JavaScript style, naming, file organization, CSS/BEM, i18n, and commit message rules. Use whenever writing, reviewing, or refactoring frontend code in a project that has installed this skill. See the Workflow section for how to scope which reference files apply.
 ---
 
 # Develop — Frontend Development Conventions
@@ -20,35 +20,41 @@ Follow this for every request that touches frontend code, no matter how small �
 one-line fix or a single class rename is not exempt:
 
 1. **Inspect the project first.** Look at its actual structure and tooling (UI
-   framework, state library, existing file layout), and check whether it has its own
-   local override doc — commonly a `PROJECT.md` at the project root, or its
-   own `CLAUDE.md`. A project's own doc always wins over this skill when the two
-   genuinely conflict, since it records deliberate, project-specific deviations (a
-   different UI kit, Vuex instead of Pinia, a project's actual HTTP client shape, and
-   so on).
-2. **Always read `references/GENERAL.md` first.** It carries the cross-cutting rules —
-   architecture, JS style, naming, imports, formatting — that apply no matter which
-   specific layer the task touches.
-3. **Identify every layer the task actually touches — not only the layer of the
-   primary file named in the request.** Implementing/refactoring/fixing a single file
-   routinely pulls in other layers along the way: a component task may add a new store
-   call (`STORE.md`) or composable (`COMPOSABLE.md`), which itself may reach into a
-   service (`SERVICE.md`) or repository (`REPOSITORY.md`); it may need a new util
-   (`UTIL.md`), enum/constant (`ENUM.md`/`CONSTANT.md`), style (`STYLE.md`), or copy
-   (`LOCALE.md`). Read the reference file for each layer you end up touching, not just
-   the one the request names first — see the index below. The point is not loading
-   *every* file on *every* task, it's loading every file for a layer you actually write
-   or change code in, however many that turns out to be.
+   framework, state library, existing file layout), and check for a local override doc
+   (`PROJECT.md` or the project's own `CLAUDE.md`). A project's own doc wins over this
+   skill when the two genuinely conflict, since it records deliberate, project-specific
+   deviations (a different UI kit, Vuex instead of Pinia, a project's actual HTTP client
+   shape, and so on).
+2. **Always read `references/GENERAL.md` first** — the cross-cutting rules (architecture,
+   JS style, naming, imports, formatting) that apply no matter which layer the task
+   touches. Read every reference file you load in full, start to end — never a partial
+   or truncated read to save tokens, no matter how long the file is.
+3. **Check every layer that plausibly relates to the task — not only the layers the
+   primary file already uses.** For each layer, ask "does the *nature* of this change
+   relate to what this layer exists for?" — if yes, it's in scope, even if the file
+   touches zero code in that layer today. A layer having no existing call into it is
+   never a reason to skip checking it — it may mean the layer is *missing* and should be
+   added. For example: a component containing business logic (a calculation, a
+   classification/predicate check, derived formatting) is a signal to check
+   `SERVICE.md`, even though the component calls no service yet — the right outcome may
+   be extracting that logic into a new or existing service. The same applies
+   symmetrically to every other layer in the index below — never dismiss one just
+   because the file being touched doesn't currently use it.
+   Skip a layer only when it's **completely unrelated to the nature of the change** —
+   e.g. a pure SCSS/styling edit has no bearing on business logic, state, or component
+   structure, so it never needs `COMPONENT.md`/`SERVICE.md`/`STORE.md`.
+   **When you're not sure whether a layer applies to the file you're adding/modifying,
+   ask — don't decide silently.** When you're confident it applies (or confident it
+   doesn't), proceed without asking.
 4. **Implement following the loaded rules**, preferring them over an inconsistent
-   pattern already present in the project's own code.
-5. **Avoid introducing architectural inconsistency** — don't mix conventions from two
-   different reference files for the same kind of file, and don't invent a new pattern
-   the docs don't cover without asking.
-6. **Before finishing, re-check the diff** against every reference file read in steps
-   2–3 — not only the specific thing the request asked for, but the rest of the
-   file/section touched along the way.
-7. If the code you're looking at contradicts both this skill and the project's own
-   override doc, ask before proceeding rather than guessing which one is stale.
+   pattern already present in the project's own code. Don't mix conventions from two
+   different reference files for the same kind of file, and don't invent an uncovered
+   pattern without asking.
+5. **Before finishing, re-check the diff** against every reference file loaded above —
+   not only the specific thing the request asked for, but the rest of the file/section
+   touched along the way.
+6. If the code contradicts both this skill and the project's own override doc, ask
+   before proceeding rather than guessing which one is stale.
 
 ## Reference index — one row per layer, load each one your task actually touches
 
@@ -69,10 +75,9 @@ one-line fix or a single class rename is not exempt:
 | `LOCALE.md` | i18n: messages, enum labels, validation strings | the task adds/changes any user-facing copy |
 | `COMMIT.md` | Commit message conventions (Conventional Commits) | writing the commit message for the task |
 
-These aren't mutually exclusive — a single task commonly loads several of these at
-once because the layers call each other (see step 3 above). Skip a row only when the
-task truly never touches that layer, not because it wasn't the layer named first in
-the request.
+Apply step 3's scoping rule to each row — a single task commonly loads several of these
+at once because the layers call each other, or because the task's own nature implies one
+that isn't in use yet.
 
 Architecture, at a glance (see `references/GENERAL.md` for the full explanation):
 
