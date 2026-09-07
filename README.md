@@ -1,12 +1,8 @@
 # frontend-skills
 
-Reusable frontend engineering conventions for AI coding agents, packaged as portable
-[Agent Skills](https://code.claude.com/docs/en/skills) — installable into any project
-and usable by any compatible coding agent (Claude Code today; Codex, Cursor, etc. as
-their tooling adopts the same standard), instead of copy-pasted docs per project.
+Reusable frontend engineering conventions for AI coding agents, packaged as portable [Agent Skills](https://agentskills.io/).
 
-Agent-agnostic by design: this repo holds only portable skill definitions — no
-`.claude/`, no agent-specific config, no symlinks or submodules.
+This repository contains frontend development rules as installable Skills that can be used across compatible coding agents and projects.
 
 ## Structure
 
@@ -14,64 +10,55 @@ Agent-agnostic by design: this repo holds only portable skill definitions — no
 frontend-skills/
 │
 ├── develop/
-│   ├── SKILL.md            # what it covers, workflow, reference index
-│   └── references/         # detailed, topic-specific rules
-│       ├── GENERAL.md, REPOSITORY.md, SERVICE.md, STORE.md, COMPONENT.md,
-│       ├── VIEW.md, COMPOSABLE.md, ENUM.md, CONSTANT.md, CONFIG.md,
-│       └── UTIL.md, STYLE.md, LOCALE.md, COMMIT.md
+│   ├── SKILL.md
+│   └── references/
+│       ├── GENERAL.md
+│       ├── REPOSITORY.md
+│       ├── SERVICE.md
+│       ├── STORE.md
+│       ├── COMPONENT.md
+│       ├── VIEW.md
+│       ├── COMPOSABLE.md
+│       ├── ...
 │
 ├── README.md
 └── LICENSE
 ```
 
-Each top-level folder (`develop/`, and any future addition) is one installable skill —
-there's no wrapping `skills/` directory.
+Each top-level directory is an independently installable Skill.
 
 ## Skills
 
-- **`develop`** — frontend development conventions (architecture layering, JS style,
-  naming, CSS/BEM, i18n, commit messages). See `develop/SKILL.md` for what it
-  covers and how an agent should apply it.
+### `develop`
 
-## Installing into a project
+Frontend development conventions covering architecture, code style, naming, components, state management, styling, localization, and other project-level development practices.
 
-Intended usage, once a skills installer is in place. Install one specific skill:
+The Skill uses `SKILL.md` as its entry point and `references/` for detailed rules.
+
+## Installation
+
+Install the `develop` Skill into your project:
 
 ```bash
 npx skills add https://github.com/eghamat24/frontend-skills --skill develop
 ```
 
-Or install every skill this repo has (reasonable here since everything in it is
-frontend-scoped):
+To install all available Skills:
 
 ```bash
 npx skills add https://github.com/eghamat24/frontend-skills
 ```
 
-(either form also works against your own fork, e.g.
-`https://github.com/Mrtza-javidi/frontend-skills`.)
+You can replace the repository URL with your own fork.
 
-Until you have a skills CLI wired up, install manually: copy or `git subtree`/clone the
-whole repo (or just the `develop/` folder for a single skill) into wherever your
-agent looks for skills — for Claude Code, that's `.claude/skills/` inside the target
-project, one subfolder per skill.
+## Adding a Skill
 
-## Adding another skill
-
-This repo is scoped to frontend conventions, so any future addition here should also be
-frontend-related. Same shape as `develop`, added as its own top-level folder (no
-wrapping `skills/` directory):
+Add a new top-level directory containing a `SKILL.md` and, optionally, a `references/` directory:
 
 ```text
-<name>/
+<skill-name>/
 ├── SKILL.md
 └── references/
 ```
 
-`SKILL.md` holds the frontmatter (`name`, discovery `description`) and workflow;
-`references/` holds the detailed rules, loaded on demand. Don't duplicate a rule
-between the two.
-
-`COMMIT.md` currently lives under `develop/references/` even though it isn't
-frontend-specific, since `develop` is the only skill so far — fine as-is unless a
-second skill here would otherwise need to duplicate it.
+Keep `SKILL.md` focused on the Skill's purpose, workflow, and instructions. Put detailed rules and supporting documentation in `references/`.
