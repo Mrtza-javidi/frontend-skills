@@ -21,7 +21,7 @@ one-line fix or a single class rename is not exempt:
 
 1. **Inspect the project first.** Look at its actual structure and tooling (UI
    framework, state library, existing file layout), and check for a local override doc
-   (`PROJECT.md` or the project's own `CLAUDE.md`). A project's own doc wins over this
+   (`PROJECT.md`). A project's own doc wins over this
    skill when the two genuinely conflict, since it records deliberate, project-specific
    deviations (a different UI kit, Vuex instead of Pinia, a project's actual HTTP client
    shape, and so on).
