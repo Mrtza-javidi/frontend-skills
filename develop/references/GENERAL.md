@@ -1,6 +1,6 @@
 # GENERAL.md — Cross-Project Frontend Principles
 
-This document holds the coding rules that apply to **every** front-end project regardless of which UI framework/library (Bootstrap, Vuetify, or none) sits on top of Vue. Layer-specific rules live in their own files (`SERVICE.md`, `REPOSITORY.md`, `STORE.md`, etc.) and are indexed from `SKILL.md`. Anything here can be narrowed or overridden by a project's own local override doc (see `SKILL.md` for how that's found), but should not be contradicted without a stated reason.
+This document holds the coding rules that apply to **every** front-end project regardless of which UI framework/library (Bootstrap, Vuetify, or none) sits on top of Vue. Layer-specific rules live in their own files (`SERVICE.md`, `REPOSITORY.md`, `STORE.md`, etc.) and are indexed from `AGENTS.md`. Anything here can be narrowed or overridden by a project's own `PROJECT.md` (see `AGENTS.md`), but should not be contradicted without a stated reason.
 
 These rules are derived from actual, recently-written code in real projects — not an aspirational style guide. Where a project's own code disagrees with a rule stated here, that's a signal to *ask whether to refactor*, not to silently copy the older pattern.
 
@@ -54,6 +54,7 @@ specifically may or may not import.
 - Semicolons are required everywhere they are syntactically valid.
 - No trailing commas — in arrays, objects, or argument lists.
 - Single quotes for strings in JS/JS-in-Vue logic. Templates use double quotes (see `COMPONENT.md`).
+- Prefer a template literal over `+` string concatenation whenever a string is being built from static text and a variable/expression — including a single trailing/leading interpolation, not just multi-part strings: `` `enums.attribute_category.${ AttributeCategoryEnum.HOTEL }` ``, never `'enums.attribute_category.' + AttributeCategoryEnum.HOTEL`. Give the interpolation a space just inside the `${ }`, matching the object-brace spacing rule (see the Vue Template Style section below for the template-in-markup case). Reserve `+` for genuine arithmetic.
 - Use `async/await`; avoid raw promise chaining (`.then()`).
 - Every function that awaits a repository/service call wraps that call in `try`/`finally`, even when there's no loading flag to increment/decrement and the `finally` block ends up empty. This keeps the shape consistent everywhere and means adding loading state (or any other cleanup) later is a small diff instead of a restructure.
 
@@ -98,12 +99,12 @@ Use explicit comparisons instead of relying on truthiness/falsiness coercion, es
 // Good
 if (isVisible === true) { ... }
 if (items.length === 0) { ... }
-if (config !== undefined && config.headers !== undefined) { ... }
+if (existing !== undefined && existing.items !== undefined) { ... }
 
 // Bad
 if (!isVisible) { ... }
 if (!items.length) { ... }
-if (config?.headers) { ... }
+if (existing?.items) { ... }
 ```
 
 **Optional chaining (`?.`) and nullish coalescing (`??`) are never allowed, anywhere, with no exceptions** — not as a conditional shortcut, not inside a `computed`/`return` expression, not in a template interpolation or prop binding, and not even when a value is "deeply nested" or "genuinely optional." A value that can genuinely be absent still gets an explicit, spelled-out check at the level(s) where it can actually be missing — that's the whole guard, not a `?.`/`??` standing in for it. This is a hard rule, not a judgment call: if you find yourself reasoning about whether a particular `?.`/`??` is "safe" or "necessary" here, that reasoning itself means it must be rewritten as an explicit check instead.
@@ -118,6 +119,31 @@ if (agencyStore.agency.logo !== undefined) {
 // Bad
 const logoUrl = agencyStore.agency.logo?.url !== undefined ? agencyStore.agency.logo.url : '';
 const logoUrl = agencyStore.agency.logo?.url ?? '';
+```
+
+The same restriction applies to `||`/`&&` used to select or default a **value** rather than to combine booleans — `value || fallback`, `condition && 'result'` rely on the exact same truthiness coercion `?.`/`??` do, just spelled with a different operator, and are banned the same way. Check the absent/negative case explicitly first and return or assign early, then fall through to the real value — the same guard-clause shape a validation rule's early return already uses:
+
+```js
+// Good
+function getPage(query, defaultPage) {
+    if (query.page === undefined) {
+        return defaultPage;
+    }
+
+    return query.page;
+}
+
+// Bad
+const page = query.page || defaultPage;
+const label = items.length && 'has items';
+```
+
+`||`/`&&` remain fine for combining two already-explicit boolean comparisons into a single condition — that's not truthiness coercion, both sides are already real booleans:
+
+```js
+// Still fine
+if (isSignedIn === true && hasAccess === true) { ... }
+if (input.type === InputTypeEnum.RADIO || input.type === InputTypeEnum.CHECKBOX) { ... }
 ```
 
 This applies just as much inside a Vue template — pull the check into a `computed` in `setup()` rather than reaching for `?.` in the markup:
@@ -157,6 +183,63 @@ if ((promotion.start_at < now && now < promotion.end_at) === false) { ... }
 
 // Bad
 if (promotion.start_at < now && now < promotion.end_at === false) { ... }
+```
+
+A value's actual origin decides which presence check(s) it needs — never reach for
+`!== null && !== undefined` together as a reflex pair "just in case." Trace where the value
+actually comes from (an API field's documented type, a repository's `getDefault()`, a literal
+passed at the call site) and check only the state it can really be in. A field typed/documented as
+`array | null` (never `undefined`) only ever needs a `null` check; a plain object-property lookup
+(`someMap[key]`) only ever needs an `undefined` check, since a missing key reads as `undefined`,
+never `null`. Checking both when only one is actually reachable doesn't add safety — it just
+obscures which state the code is really guarding against, and reads as if the value's shape were
+never pinned down.
+
+```js
+// Bad — every call site passes this function either a real array or a literal `null`;
+// `undefined` never occurs here, so checking for it adds nothing
+function buildConditions(structure, existingConditions) {
+    const existingByKey = existingConditions !== null && existingConditions !== undefined
+        ? keyBy(existingConditions, 'key')
+        : {};
+    ...
+}
+
+// Good
+function buildConditions(structure, existingConditions) {
+    const existingByKey = existingConditions !== null
+        ? keyBy(existingConditions, 'key')
+        : {};
+    ...
+}
+```
+
+The exception is a nested/inner key that may genuinely be absent independent of its container's
+own presence — verify this from the same source (the API doc, the shape's own definition), don't
+assume it just because the key happens to be nested. A condition's `items` array is a real example:
+per this project's own attribute API, only `checkbox`/`radio` conditions carry an `items` field at
+all — a `text`/`number` condition's record omits it entirely, independent of whether the condition
+itself was found. That's a genuinely, independently-optional inner key, so it gets its own check on
+top of (not instead of) whatever check the outer lookup already needed:
+
+```js
+// Good — `existing` itself was already confirmed found; `existing.items` is a separate,
+// genuinely-optional field (only checkbox/radio conditions carry one) that needs its own check
+if (existing !== undefined && existing.items !== undefined) { ... }
+```
+
+The mirror mistake is checking a nested key that's actually guaranteed present whenever its
+container is — that's the exact same over-checking the rule above warns about, just one level
+deeper. If a shape's own definition says a field always exists once the object itself does, adding
+an `undefined` check for that field on top of checking the object isn't "extra safe," it's noise:
+
+```js
+// Bad — the API documents `id` as always present on this entity; checking it on top of
+// checking `attribute` itself adds nothing
+if (attribute !== undefined && attribute.id !== undefined) { ... }
+
+// Good
+if (attribute !== undefined) { ... }
 ```
 
 ### Initial / Default Values
@@ -213,8 +296,71 @@ internals top to bottom in one consistent shape:
 3. `computed` derived values.
 4. Functions (plain, then `async`).
 5. `watch`.
-6. The `return { ... }` object last, grouped in the same clusters as declared above (blank line
-   between clusters) — not alphabetical.
+6. The `return { ... }` object last, in three tiers, each its own group separated by a blank line:
+
+    1. **First** — anything obtained directly from calling a composable (`const route = useRoute();`,
+       `const { isLoading, startLoading, endLoading } = useLoading();`, `const { tableOptions, items,
+      total } = useDataTable();`), if it's part of the return object at all. This goes first
+       regardless of whether it's also used elsewhere in script or only in the template — `store`,
+       `isLoading`, `route`, `router`, `tableOptions`, `formIsValid`/`validationRules` from a shared
+       form composable, etc. all belong here. This tier is not exempt from the same relatedness
+       grouping as the middle tier: results that came from the *same* composable call stay adjacent
+       (`tableOptions`, `items`, `total` from one `useDataTable()`), but an unrelated composable's
+       output (`isLoading` from a separate `useLoading()`) still gets its own blank-line-separated
+       group within this tier, not folded into the first one just because both are composable-derived.
+    2. **Middle** — the file's own locally-declared state/computed/functions (a plain `ref`/`reactive`
+       created in this file, a `computed`, a function defined in this file) — grouped by actual
+       semantic relatedness, not alphabetically and not simply by whether a value happens to be a
+       `ref`, a `computed`, or a function. Two entries that describe or operate on the same concern
+       sit adjacent with no blank line between them; a blank line separates that group from the next
+       one, even when both fall in the same mechanical category (two unrelated `computed`s still get
+       a blank line between them). Ask "does this value actually get used together with its neighbor,
+       or read/change for the same reason?" — if not, it's a different group.
+    3. **Last** — anything that is itself a direct import from another file (an enum, a util function,
+       a constant — e.g. `import InputType from '@/enums/input-type.enum';` re-exposed to the
+       template for a comparison like `input.type === InputType.RADIO`) **and** is read from the
+       template. This goes last even when the same import is *also* read from a function in this
+       file — the deciding factor is that the value's source is an external file, not this
+       component's own state.
+
+```js
+// Good — composable-derived first, this file's own state/computed/functions grouped by concern,
+// the imported InputType enum last because the template reads it directly
+return {
+    isLoading,
+    formIsValid,
+    validationRules,
+
+    formData,
+    inputs,
+
+    isUpdateForm,
+    title,
+    submitButtonText,
+
+    showDialog,
+    close,
+
+    submit,
+
+    InputType
+};
+
+// Bad — isLoading buried at the end instead of leading, InputType mixed into the feature-specific
+// group instead of trailing on its own, dialogShow/close split from each other
+return {
+    isUpdateForm,
+    title,
+    submitButtonText,
+    showDialog,
+    InputType,
+
+    close,
+    submit,
+
+    isLoading
+};
+```
 
 That returned object is always a plain object of refs/computed/functions — never a `reactive()`
 wrapper directly (that breaks destructuring reactivity for the consumer).
@@ -277,6 +423,34 @@ properties.map(property => property.id)
 properties.map(item => item.id)
 ```
 
+- Omitting a namespace/qualifier only works when the *enclosing scope's own single purpose* is
+  what actually explains the name — not whenever a short name is merely convenient. A View's
+  `items`/`fetch`/`total` are self-evident because that View's whole reason for existing is "the
+  list this page shows" — there's nothing else `items` could mean in that file. A dialog's own
+  `show` prop / local `isShown` computed are self-evident the same way, because that file *is* the
+  dialog (see `COMPONENT.md`'s `show`/`isShown` pattern) — reading `isShown` inside the dialog
+  answers "is *this component* shown?" with no other candidate referent. That reasoning breaks the
+  moment the value's real subject is a *child* the enclosing file merely renders, rather than the
+  enclosing file's own concern: a View's `ref` that exists only to feed one specific child dialog's
+  `show` prop describes that dialog, not the View — inside the View's own file, "is this View
+  shown?" isn't even a meaningful question, so `isShown` there answers nothing and only reads
+  correctly by mentally substituting in the child's name. Name it for what it actually toggles
+  instead, so it stays legible without that substitution and so a second dialog added later can't
+  collide with it.
+
+```js
+// Bad — PropertyAttributesView.vue; "isShown" describes nothing about this View's own domain,
+// only about the dialog it's handed to
+const isShown = ref(false);
+...
+<PropertyAttributeDialog v-model="isShown" .../>
+
+// Good
+const isCreateDialogShown = ref(false);
+...
+<PropertyAttributeDialog v-model="isCreateDialogShown" .../>
+```
+
 - Name the reactive value that a fetch/response result is stored into `items` when it holds an
   array — regardless of domain (`items`, not `properties`/`rooms`/`flights`), since the enclosing
   file/store/composable/component already gives the domain context. This applies wherever the
@@ -287,7 +461,14 @@ properties.map(item => item.id)
 - Every function name starts with a verb describing the action it performs (`fetchCityProperties`,
   `getStatusLabel`, `startLoading`, `normalizePersianText`) — never a bare noun. A predicate
   function's verb is `is`/`has` per the flag rule above (`isDisabled(contract)`).
-- Choose semantic, descriptive names over short or clever ones.
+- Choose semantic, descriptive names over short or clever ones. This applies to function parameters
+  too, not just variables: a validation-rule function takes `value`, not `v`; an event handler
+  takes `event`, not `e`. The one accepted exception is a classic indexed `for` loop counter
+  (`i`/`j`), where the convention is already unambiguous.
+- Name a `ref`/`reactive` after what it actually holds, not after its generic mechanism/type — a
+  form's editable data is `formData` or such, never the
+  bare word `form`, which reads as the `<form>`/`VForm` element itself and collides in meaning with
+  a sibling `formRef`.
 - A parameter that must be declared only to preserve position for a later parameter that *is* used, but is never itself referenced in the function body, is named `_` instead of its normal descriptive name:
 
 ```js
